@@ -1,5 +1,6 @@
 #include <string>
 #include <fcntl.h>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <stdint.h>
@@ -61,14 +62,40 @@ void JoinAndPrintGeometries(
     }
 }
 
+std::filesystem::path ReplaceFilenameSubstring(
+    std::filesystem::path source,
+    const std::string& find, const std::string& replace) {
+  std::string replacement_filename = source.filename().string();
+  auto pos = replacement_filename.find(find);
+  if (pos != std::string::npos) {
+    replacement_filename.replace(pos, find.length(), replace);
+  }
+  return source.replace_filename(replacement_filename);
+}
+
+void PrintUsage(const std::string& argv_0) {
+  std::cout << "Usage: " << argv_0 << " <geometry.pbf>" << std::endl;
+  std::cout << "A corresponding metadata tile should exist in the same directory." << std::endl;
+}
+
 int main(int argc, char* argv[]) {
-  if (argc != 3) {
-    std::cout << "Usage: " << argv[0] << " <geometry.pbf> <metadata.pbf>" << std::endl;
+  if (argc != 2) {
+    PrintUsage(argv[0]);
     return 1;
   }
 
-  std::map<std::string, SharedStreetsMetadata> metadata_by_geometry_id = ReadMetadataTile(argv[2]);
-  std::map<std::string, SharedStreetsGeometry> geometry_by_id = ReadGeometryTile(argv[1]);
+  std::filesystem::path geometry_path(argv[1]);
+
+  // Check that the path has "geometry" as a substring, because we'll need it to generate the
+  // filenames of the other layers of that tile.
+  if (geometry_path.filename().string().find("geometry") == std::string::npos) {
+    PrintUsage(argv[0]);
+    return 1;
+  }
+  auto metadata_path = ReplaceFilenameSubstring(geometry_path, "geometry", "metadata");
+
+  auto metadata_by_geometry_id = ReadMetadataTile(metadata_path);
+  auto geometry_by_id = ReadGeometryTile(geometry_path);
   JoinAndPrintGeometries(geometry_by_id, metadata_by_geometry_id);
   return 0;
 }
