@@ -1,53 +1,24 @@
 #include <string>
-#include <fcntl.h>
 #include <filesystem>
-#include <fstream>
-#include <memory>
-#include <stdint.h>
-
-#include "google/protobuf/io/coded_stream.h"
-#include "google/protobuf/io/zero_copy_stream.h"
-#include "google/protobuf/io/zero_copy_stream_impl.h"
 
 #include "proto/sharedstreets.pb.h"
+#include "sharedstreets-tile-parser.h"
 
-using google::protobuf::io::CodedInputStream;
-using google::protobuf::io::FileInputStream;
-using google::protobuf::io::ZeroCopyInputStream;
-
-std::map<std::string, SharedStreetsMetadata> ReadMetadataTile(const std::string& filename) {
-  int fd = open(filename.c_str(), O_RDONLY);
-  FileInputStream raw_input(fd);
-  CodedInputStream coded_input(&raw_input);
-
+std::map<std::string, SharedStreetsMetadata> ReadMetadataTile(const std::filesystem::path& filename) {
   std::map<std::string, SharedStreetsMetadata> metadata_by_geometry_id;
-  uint32_t next_message_length;
-  while (coded_input.ReadVarint32(&next_message_length)) {
-    const auto limit = coded_input.PushLimit(next_message_length);
-    SharedStreetsMetadata m;
-    m.ParseFromCodedStream(&coded_input);
-    metadata_by_geometry_id[m.geometryid()] = m;
-    coded_input.PopLimit(limit);
+  SharedStreetsTileParser<SharedStreetsMetadata> parser(filename);
+  for (const auto& m : parser.GetContents()) {
+    metadata_by_geometry_id[m.geometryid()] = std::move(m);
   }
-
   return metadata_by_geometry_id;
 }
 
-std::map<std::string, SharedStreetsGeometry> ReadGeometryTile(const std::string& filename) {
-  int fd = open(filename.c_str(), O_RDONLY);
-  FileInputStream raw_input(fd);
-  CodedInputStream coded_input(&raw_input);
-
+std::map<std::string, SharedStreetsGeometry> ReadGeometryTile(const std::filesystem::path& filename) {
   std::map<std::string, SharedStreetsGeometry> geometry_by_id;
-  uint32_t next_message_length;
-  while (coded_input.ReadVarint32(&next_message_length)) {
-    const auto limit = coded_input.PushLimit(next_message_length);
-    SharedStreetsGeometry g;
-    g.ParseFromCodedStream(&coded_input);
-    geometry_by_id[g.id()] = g;
-    coded_input.PopLimit(limit);
+  SharedStreetsTileParser<SharedStreetsGeometry> parser(filename);
+  for (const auto& g : parser.GetContents()) {
+    geometry_by_id[g.id()] = std::move(g);
   }
-
   return geometry_by_id;
 }
 
