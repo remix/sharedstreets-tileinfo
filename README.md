@@ -6,6 +6,6 @@ This project includes a `SharedStreetsTileParser` class that can read a SharedSt
 ## Usage
 This project is built with [bazel](https://bazel.build).
 ```
-$ bazel build --cxxopt='-std=c++17' :all
+$ bazel build :all
 $ ./bazel-bin/shst_tile_info ~/path/to/tile.geometry.6.pbf
 ```
